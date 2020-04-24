@@ -1,13 +1,13 @@
-﻿using Shadowsocks.Controller;
-using Shadowsocks.Properties;
-using Shadowsocks.Util;
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using Shadowsocks.Controller;
+using Shadowsocks.Properties;
+using Shadowsocks.Util;
 
 namespace Shadowsocks.Encryption
 {
-    public class Sodium
+    public static class Sodium
     {
         private const string DLLNAME = @"libsscrypto.dll";
 
@@ -27,7 +27,7 @@ namespace Shadowsocks.Encryption
             catch (IOException)
             {
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 Logging.LogUsefulException(e);
             }
@@ -40,10 +40,8 @@ namespace Shadowsocks.Encryption
                     {
                         throw new System.Exception(@"Failed to initialize sodium");
                     }
-                    else /* 1 means already initialized; 0 means success */
-                    {
-                        _initialized = true;
-                    }
+
+                    _initialized = true;
 
                     AES256GCMAvailable = crypto_aead_aes256gcm_is_available() == 1;
                     Logging.Debug($@"sodium: AES256GCMAvailable is {AES256GCMAvailable}");
@@ -88,16 +86,16 @@ namespace Shadowsocks.Encryption
         #region Stream
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void crypto_stream_salsa20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
+        public static extern int crypto_stream_salsa20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void crypto_stream_xsalsa20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
+        public static extern int crypto_stream_xsalsa20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void crypto_stream_chacha20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
+        public static extern int crypto_stream_chacha20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void crypto_stream_xchacha20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
+        public static extern int crypto_stream_xchacha20_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, ulong ic, byte[] k);
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]
         public static extern int crypto_stream_chacha20_ietf_xor_ic(byte[] c, byte[] m, ulong mlen, byte[] n, uint ic, byte[] k);

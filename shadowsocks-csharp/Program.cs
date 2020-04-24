@@ -1,110 +1,121 @@
-﻿using Shadowsocks.Controller;
+using Microsoft.Win32;
+using Shadowsocks.Controller;
+using Shadowsocks.Controller.HttpRequest;
+using Shadowsocks.Enums;
+using Shadowsocks.Model;
+using Shadowsocks.Util;
+using Shadowsocks.Util.SingleInstance;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
-using System.Windows.Forms;
-using Microsoft.Win32;
-using Shadowsocks.Model;
-#if !_CONSOLE
-using Shadowsocks.View;
-#endif
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace Shadowsocks
 {
-    static class Program
+    internal static class Program
     {
-        static ShadowsocksController _controller;
-#if !_CONSOLE
-        static MenuViewController _viewController;
-#endif
-
-        /// <summary>
-        /// 应用程序的主入口点。
-        /// </summary>
         [STAThread]
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-#if !_CONSOLE
-            foreach (string arg in args)
+            Directory.SetCurrentDirectory(Path.GetDirectoryName(Utils.GetExecutablePath()) ?? throw new InvalidOperationException());
+            if (args.Contains(Constants.ParameterSetAutoRun))
             {
-                if (arg == "--setautorun")
+                if (!AutoStartup.Switch())
                 {
-                    if (!Controller.AutoStartup.Switch())
-                    {
-                        Environment.ExitCode = 1;
-                    }
-                    return;
+                    Environment.ExitCode = 1;
                 }
+                return;
             }
-            using (Mutex mutex = new Mutex(false, "Global\\ShadowsocksR_" + Application.StartupPath.GetHashCode()))
+
+            var identifier = $@"Global\{UpdateChecker.Name}_{Directory.GetCurrentDirectory().GetDeterministicHashCode()}";
+            using var singleInstance = new SingleInstance(identifier);
+            if (!singleInstance.IsFirstInstance)
             {
-                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-                Application.EnableVisualStyles();
-                Application.ApplicationExit += Application_ApplicationExit;
-                SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
-                Application.SetCompatibleTextRenderingDefault(false);
+                singleInstance.PassArgumentsToFirstInstance(args.Length == 0
+                        ? args.Append(Constants.ParameterMultiplyInstance)
+                        : args);
+                return;
+            }
+            singleInstance.ArgumentsReceived += SingleInstance_ArgumentsReceived;
 
-                if (!mutex.WaitOne(0, false))
-                {
-                    MessageBox.Show(I18N.GetString("Find Shadowsocks icon in your notify tray.") + Environment.NewLine +
-                        I18N.GetString("If you want to start multiple Shadowsocks, make a copy in another directory."),
-                        I18N.GetString("ShadowsocksR is already running."));
-                    return;
-                }
-#endif
-                Directory.SetCurrentDirectory(Application.StartupPath);
+            var app = new Application
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown
+            };
 
-#if !_CONSOLE
-                int try_times = 0;
-                while (Configuration.Load() == null)
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+            SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+            app.Exit += App_Exit;
+
+            Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(@"##SyncfusionLicense##");
+
+            Global.LoadConfig();
+
+            I18NUtil.SetLanguage(Global.GuiConfig.LangName);
+            ViewUtils.SetResource(app.Resources, @"../View/NotifyIconResources.xaml", 1);
+
+            Global.Controller = new MainController();
+
+            // Logging
+            Logging.DefaultOut = Console.Out;
+            Logging.DefaultError = Console.Error;
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13 | SecurityProtocolType.Tls12;
+
+            Global.ViewController = new MenuViewController(Global.Controller);
+            SystemEvents.SessionEnding += Global.ViewController.Quit_Click;
+
+            Global.OSSupportsLocalIPv6 = Socket.OSSupportsIPv6;
+            Global.Controller.Reload();
+            if (Global.GuiConfig.IsDefaultConfig())
+            {
+                var res = MessageBox.Show(
+                $@"{I18NUtil.GetAppStringValue(@"DefaultConfigMessage")}{Environment.NewLine}{I18NUtil.GetAppStringValue(@"DefaultConfigQuestion")}",
+                UpdateChecker.Name, MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.OK);
+                switch (res)
                 {
-                    if (try_times >= 5)
+                    case MessageBoxResult.Yes:
+                    {
+                        Global.Controller.ShowConfigForm();
+                        break;
+                    }
+                    case MessageBoxResult.No:
+                    {
+                        Global.Controller.ShowSubscribeWindow();
+                        break;
+                    }
+                    default:
+                    {
+                        StopController();
                         return;
-                    using (InputPassword dlg = new InputPassword())
-                    {
-                        if (dlg.ShowDialog() == DialogResult.OK)
-                            Configuration.SetPassword(dlg.password);
-                        else
-                            return;
                     }
-                    try_times += 1;
                 }
-#endif
-
-                _controller = new ShadowsocksController();
-                HostMap.Instance().LoadHostFile();
-
-                // Logging
-                Configuration cfg = _controller.GetConfiguration();
-                Logging.save_to_file = cfg.logEnable;
-
-                //#if !DEBUG
-                if (try_times > 0)
-                    Logging.save_to_file = false;
-                Logging.OpenLogFile();
-                //#endif
-
-#if _DOTNET_4_0
-                // Enable Modern TLS when .NET 4.5+ installed.
-                if (Util.EnvCheck.CheckDotNet45())
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-#endif
-#if !_CONSOLE
-                _viewController = new MenuViewController(_controller);
-#endif
-
-                _controller.Start();
-
-#if !_CONSOLE
-                //Util.Utils.ReleaseMemory();
-
-                Application.Run();
             }
-#else
-            Console.ReadLine();
-            _controller.Stop();
-#endif
+
+            Reg.SetUrlProtocol(@"ssr");
+            Reg.SetUrlProtocol(@"sub");
+
+            singleInstance.ListenForArgumentsFromSuccessiveInstances();
+            app.Run();
+        }
+
+        private static void StopController()
+        {
+            Global.ViewController?.Quit_Click(default, default);
+            Global.Controller?.Stop();
+            Global.Controller = null;
+        }
+
+        private static void App_Exit(object sender, ExitEventArgs e)
+        {
+            Reg.RemoveUrlProtocol(@"ssr");
+            Reg.RemoveUrlProtocol(@"sub");
+            StopController();
         }
 
         private static void SystemEvents_PowerModeChanged(object sender, PowerModeChangedEventArgs e)
@@ -112,64 +123,64 @@ namespace Shadowsocks
             switch (e.Mode)
             {
                 case PowerModes.Resume:
-                    if (_controller != null)
+                {
+                    Logging.Info("os wake up");
+                    if (Global.Controller != null)
                     {
-                        System.Timers.Timer timer = new System.Timers.Timer(5 * 1000);
-                        timer.Elapsed += Timer_Elapsed;
-                        timer.AutoReset = false;
-                        timer.Enabled = true;
-                        timer.Start();
+                        Task.Run(() =>
+                        {
+                            Thread.Sleep(10 * 1000);
+                            try
+                            {
+                                Global.Controller.Reload();
+                                Logging.Info("controller started");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logging.LogUsefulException(ex);
+                            }
+                        });
                     }
                     break;
+                }
                 case PowerModes.Suspend:
-                    if (_controller != null) _controller.Stop();
+                {
+                    if (Global.Controller != null)
+                    {
+                        Global.Controller.Stop();
+                        Logging.Info("controller stopped");
+                    }
+                    Logging.Info("os suspend");
                     break;
-            }
-        }
-
-        private static void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            try
-            {
-                if (_controller != null) _controller.Start();
-            }
-            catch (Exception ex)
-            {
-                Logging.LogUsefulException(ex);
-            }
-            finally
-            {
-                try
-                {
-                    System.Timers.Timer timer = (System.Timers.Timer)sender;
-                    timer.Enabled = false;
-                    timer.Stop();
-                    timer.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Logging.LogUsefulException(ex);
                 }
             }
         }
 
-        private static void Application_ApplicationExit(object sender, EventArgs e)
-        {
-            if (_controller != null) _controller.Stop();
-            _controller = null;
-        }
-
-        private static int exited = 0;
+        private static int _exited;
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            if (Interlocked.Increment(ref exited) == 1)
+            if (Interlocked.Increment(ref _exited) == 1)
             {
-                Logging.Log(LogLevel.Error, e.ExceptionObject != null ? e.ExceptionObject.ToString() : "");
-                MessageBox.Show(I18N.GetString("Unexpected error, ShadowsocksR will exit.") +
-                    Environment.NewLine + (e.ExceptionObject != null ? e.ExceptionObject.ToString() : ""),
-                    "Shadowsocks Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Application.Exit();
+                Logging.Log(LogLevel.Error, $@"{e.ExceptionObject}");
+                MessageBox.Show(
+                $@"{I18NUtil.GetAppStringValue(@"UnexpectedError")}{Environment.NewLine}{e.ExceptionObject}",
+                    UpdateChecker.Name, MessageBoxButton.OK, MessageBoxImage.Error);
+                Application.Current.Shutdown();
             }
+        }
+
+        private static void SingleInstance_ArgumentsReceived(object sender, ArgumentsReceivedEventArgs e)
+        {
+            if (e.Args.Contains(Constants.ParameterMultiplyInstance))
+            {
+                MessageBox.Show(I18NUtil.GetAppStringValue(@"SuccessiveInstancesMessage1") + Environment.NewLine +
+                                I18NUtil.GetAppStringValue(@"SuccessiveInstancesMessage2"),
+                        I18NUtil.GetAppStringValue(@"SuccessiveInstancesCaption"), MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            Application.Current.Dispatcher?.InvokeAsync(() =>
+            {
+                Global.ViewController.ImportAddress(string.Join(Environment.NewLine, e.Args));
+            });
         }
     }
 }

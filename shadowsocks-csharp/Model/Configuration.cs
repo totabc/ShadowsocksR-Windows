@@ -1,196 +1,259 @@
-﻿using Newtonsoft.Json;
-using Shadowsocks.Controller;
-using Shadowsocks.Encryption;
+﻿#if IsDotNetCore
+using System.Text.Json.Serialization;
+#else
+using Newtonsoft.Json;
+#endif
+using Shadowsocks.Enums;
+using Shadowsocks.Util;
+using Shadowsocks.ViewModel;
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Net;
-using System.Text;
-using System.Windows.Forms;
 
 namespace Shadowsocks.Model
 {
-    public class UriVisitTime : IComparable
-    {
-        public DateTime visitTime;
-        public string uri;
-        public int index;
-
-        public int CompareTo(object other)
-        {
-            if (!(other is UriVisitTime))
-                throw new InvalidOperationException("CompareTo: Not a UriVisitTime");
-            return Equals(other) ? 0 : visitTime.CompareTo(((UriVisitTime)other).visitTime);
-        }
-
-    }
-
-    public enum PortMapType
-    {
-        Forward = 0,
-        ForceProxy,
-        RuleProxy
-    }
-
-    public enum ProxyRuleMode
-    {
-        Disable = 0,
-        BypassLan,
-        BypassLanAndChina,
-        BypassLanAndNotChina,
-        UserCustom = 16,
-    }
-
     [Serializable]
-    public class PortMapConfig
+    public class Configuration : ViewModelBase
     {
-        public bool enable;
-        public PortMapType type;
-        public string id;
-        public string server_addr;
-        public int server_port;
-        public string remarks;
-    }
+        #region private
 
-    public class PortMapConfigCache
-    {
-        public PortMapType type;
-        public string id;
-        public Server server;
-        public string server_addr;
-        public int server_port;
-    }
-
-    [Serializable]
-    public class ServerSubscribe
-    {
-        private static string DEFAULT_FEED_URL = @"https://raw.githubusercontent.com/HMBSbige/Text_Translation/master/ShadowsocksR/freenodeplain.txt";
-
-        public string URL = DEFAULT_FEED_URL;
-        public string Group;
-        public ulong LastUpdateTime;
-    }
-
-    public static class GlobalConfiguration
-    {
-        public static string config_password = string.Empty;
-    }
-
-    [Serializable]
-    class ConfigurationException : Exception
-    {
-        public ConfigurationException() : base() { }
-        public ConfigurationException(string message) : base(message) { }
-        public ConfigurationException(string message, Exception inner) : base(message, inner) { }
-        protected ConfigurationException(System.Runtime.Serialization.SerializationInfo info,
-            System.Runtime.Serialization.StreamingContext context)
-        { }
-    }
-
-    [Serializable]
-    class ConfigurationWarning : Exception
-    {
-        public ConfigurationWarning() : base() { }
-        public ConfigurationWarning(string message) : base(message) { }
-        public ConfigurationWarning(string message, Exception inner) : base(message, inner) { }
-        protected ConfigurationWarning(System.Runtime.Serialization.SerializationInfo info,
-            System.Runtime.Serialization.StreamingContext context)
-        { }
-    }
-
-    [Serializable]
-    public class Configuration
-    {
-        #region Data
-
-        public List<Server> configs;
-        public int index;
-        public bool random;
-        public int sysProxyMode;
-        public bool shareOverLan;
-        public int localPort;
-        public string localAuthPassword;
-
-        public string localDnsServer;
-        public string dnsServer;
-        public int reconnectTimes;
-        public string balanceAlgorithm;
-        public bool randomInGroup;
-        public int TTL;
-        public int connectTimeout;
-
-        public int proxyRuleMode;
-
-        public bool proxyEnable;
-        public bool pacDirectGoProxy;
-        public int proxyType;
-        public string proxyHost;
-        public int proxyPort;
-        public string proxyAuthUser;
-        public string proxyAuthPass;
-        public string proxyUserAgent;
-
-        public string authUser;
-        public string authPass;
-
-        public bool autoBan;
-        public bool checkSwitchAutoCloseAll;
-        public bool logEnable;
-        public bool sameHostForSameTarget;
-
-        public int keepVisitTime;
-
-        public bool isHideTips;
-
-        public bool nodeFeedAutoUpdate;
-        public List<ServerSubscribe> serverSubscribes;
-
-        public Dictionary<string, string> token = new Dictionary<string, string>();
-        public Dictionary<string, PortMapConfig> portMap = new Dictionary<string, PortMapConfig>();
+        private List<Server> _configs;
+        private int _index;
+        private bool _random;
+        private ProxyMode _sysProxyMode;
+        private bool _shareOverLan;
+        private int _localPort;
+        private int _reconnectTimes;
+        private BalanceType _balanceType;
+        private bool _randomInGroup;
+        private int _ttl;
+        private int _connectTimeout;
+        private ProxyRuleMode _proxyRuleMode;
+        private bool _proxyEnable;
+        private bool _pacDirectGoProxy;
+        private ProxyType _proxyType;
+        private string _proxyHost;
+        private int _proxyPort;
+        private string _proxyAuthUser;
+        private string _proxyAuthPass;
+        private string _proxyUserAgent;
+        private string _authUser;
+        private string _authPass;
+        private bool _autoBan;
+        private bool _checkSwitchAutoCloseAll;
+        private bool _logEnable;
+        private bool _sameHostForSameTarget;
+        private bool _isPreRelease;
+        private bool _autoCheckUpdate;
+        private string _langName;
+        private List<DnsClient> _dnsClients;
+        private List<ServerSubscribe> _serverSubscribes;
+        private Dictionary<string, PortMapConfig> _portMap;
 
         #endregion
 
-        private Dictionary<int, ServerSelectStrategy> serverStrategyMap = new Dictionary<int, ServerSelectStrategy>();
-        private Dictionary<int, PortMapConfigCache> portMapCache = new Dictionary<int, PortMapConfigCache>();
-        private LRUCache<string, UriVisitTime> uricache = new LRUCache<string, UriVisitTime>(180);
+        #region Public
 
-        private const string CONFIG_FILE = @"gui-config.json";
-        private const string CONFIG_FILE_BACKUP = @"gui-config.json.backup";
+        /// <summary>
+        /// 服务器列表
+        /// </summary>
+        public List<Server> Configs { get => _configs; set => SetField(ref _configs, value); }
 
-        public static void SetPassword(string password)
-        {
-            GlobalConfiguration.config_password = password;
-        }
+        /// <summary>
+        /// 选中的服务器在列表的位置
+        /// </summary>
+        public int Index { get => _index; set => SetField(ref _index, value); }
 
-        public static bool SetPasswordTry(string old_password, string password)
-        {
-            return old_password == GlobalConfiguration.config_password;
-        }
+        /// <summary>
+        /// 是否启用负载均衡
+        /// </summary>
+        public bool Random { get => _random; set => SetField(ref _random, value); }
+
+        /// <summary>
+        /// 系统代理模式
+        /// </summary>
+        public ProxyMode SysProxyMode { get => _sysProxyMode; set => SetField(ref _sysProxyMode, value); }
+
+        /// <summary>
+        /// 是否监听所有网卡
+        /// </summary>
+        public bool ShareOverLan { get => _shareOverLan; set => SetField(ref _shareOverLan, value); }
+
+        /// <summary>
+        /// 监听端口
+        /// </summary>
+        public int LocalPort { get => _localPort; set => SetField(ref _localPort, value); }
+
+        /// <summary>
+        /// 重连次数
+        /// </summary>
+        public int ReconnectTimes { get => _reconnectTimes; set => SetField(ref _reconnectTimes, value); }
+
+        /// <summary>
+        /// 负载均衡使用的算法
+        /// </summary>
+        public BalanceType BalanceType { get => _balanceType; set => SetField(ref _balanceType, value); }
+
+        /// <summary>
+        /// 负载均衡是否只在所选组切换
+        /// </summary>
+        public bool RandomInGroup { get => _randomInGroup; set => SetField(ref _randomInGroup, value); }
+
+        /// <summary>
+        /// 空闲断开间隔（单位：秒）
+        /// </summary>
+        public int Ttl { get => _ttl; set => SetField(ref _ttl, value); }
+
+        /// <summary>
+        /// 连接超时（单位：秒）
+        /// </summary>
+        public int ConnectTimeout { get => _connectTimeout; set => SetField(ref _connectTimeout, value); }
+
+        /// <summary>
+        /// 代理规则模式
+        /// </summary>
+        public ProxyRuleMode ProxyRuleMode { get => _proxyRuleMode; set => SetField(ref _proxyRuleMode, value); }
+
+        /// <summary>
+        /// 是否开启二级代理
+        /// </summary>
+        public bool ProxyEnable { get => _proxyEnable; set => SetField(ref _proxyEnable, value); }
+
+        /// <summary>
+        /// PAC 的直连使用二级代理
+        /// </summary>
+        public bool PacDirectGoProxy { get => _pacDirectGoProxy; set => SetField(ref _pacDirectGoProxy, value); }
+
+        /// <summary>
+        /// 二级代理类型
+        /// </summary>
+        public ProxyType ProxyType { get => _proxyType; set => SetField(ref _proxyType, value); }
+
+        /// <summary>
+        /// 二级代理服务器地址
+        /// </summary>
+        public string ProxyHost { get => _proxyHost; set => SetField(ref _proxyHost, value); }
+
+        /// <summary>
+        /// 二级代理服务器端口
+        /// </summary>
+        public int ProxyPort { get => _proxyPort; set => SetField(ref _proxyPort, value); }
+
+        /// <summary>
+        /// 二级代理用户名
+        /// </summary>
+        public string ProxyAuthUser { get => _proxyAuthUser; set => SetField(ref _proxyAuthUser, value); }
+
+        /// <summary>
+        /// 二级代理密码
+        /// </summary>
+        public string ProxyAuthPass { get => _proxyAuthPass; set => SetField(ref _proxyAuthPass, value); }
+
+        /// <summary>
+        /// Http 请求所用的 UserAgent
+        /// </summary>
+        public string ProxyUserAgent { get => _proxyUserAgent; set => SetField(ref _proxyUserAgent, value); }
+
+        /// <summary>
+        /// 本地代理的用户名
+        /// </summary>
+        public string AuthUser { get => _authUser; set => SetField(ref _authUser, value); }
+
+        /// <summary>
+        /// 本地代理的密码
+        /// </summary>
+        public string AuthPass { get => _authPass; set => SetField(ref _authPass, value); }
+
+        /// <summary>
+        /// 自动禁用出错服务器
+        /// </summary>
+        public bool AutoBan { get => _autoBan; set => SetField(ref _autoBan, value); }
+
+        /// <summary>
+        /// 切换服务器前断开所有连接
+        /// </summary>
+        public bool CheckSwitchAutoCloseAll { get => _checkSwitchAutoCloseAll; set => SetField(ref _checkSwitchAutoCloseAll, value); }
+
+        /// <summary>
+        /// 是否开启日志
+        /// </summary>
+        public bool LogEnable { get => _logEnable; set => SetField(ref _logEnable, value); }
+
+        /// <summary>
+        /// 负载均衡优先使用同一个服务器访问同一地址
+        /// </summary>
+        public bool SameHostForSameTarget { get => _sameHostForSameTarget; set => SetField(ref _sameHostForSameTarget, value); }
+
+        /// <summary>
+        /// 检查更新是否包括测试版更新
+        /// </summary>
+        public bool IsPreRelease { get => _isPreRelease; set => SetField(ref _isPreRelease, value); }
+
+        /// <summary>
+        /// 自动检查更新
+        /// </summary>
+        public bool AutoCheckUpdate { get => _autoCheckUpdate; set => SetField(ref _autoCheckUpdate, value); }
+
+        /// <summary>
+        /// 所选的语言
+        /// </summary>
+        public string LangName { get => _langName; set => SetField(ref _langName, value); }
+
+        /// <summary>
+        /// 自定义的 DNS
+        /// </summary>
+        public List<DnsClient> DnsClients { get => _dnsClients; set => SetField(ref _dnsClients, value); }
+
+        /// <summary>
+        /// 订阅列表
+        /// </summary>
+        public List<ServerSubscribe> ServerSubscribes { get => _serverSubscribes; set => SetField(ref _serverSubscribes, value); }
+
+        /// <summary>
+        /// 端口设置列表
+        /// </summary>
+        public Dictionary<string, PortMapConfig> PortMap { get => _portMap; set => SetField(ref _portMap, value); }
+
+        #endregion
+
+        #region NotConfig
+
+        private const int KeepVisitTime = 1800;
+
+        private readonly Dictionary<int, ServerSelectStrategy> _serverStrategyMap = new Dictionary<int, ServerSelectStrategy>();
+
+        [JsonIgnore]
+        public Dictionary<int, PortMapConfigCache> PortMapCache { get; private set; } = new Dictionary<int, PortMapConfigCache>();
+
+        private readonly LRUCache<string, UriVisitTime> _uriCache = new LRUCache<string, UriVisitTime>(180);
+
+        #endregion
 
         public bool KeepCurrentServer(int port, string targetAddr, string id)
         {
-            if (sameHostForSameTarget && targetAddr != null)
+            if (SameHostForSameTarget && targetAddr != null)
             {
-                lock (serverStrategyMap)
+                lock (_serverStrategyMap)
                 {
-                    if (!serverStrategyMap.ContainsKey(port))
-                        serverStrategyMap[port] = new ServerSelectStrategy();
+                    if (!_serverStrategyMap.ContainsKey(port))
+                        _serverStrategyMap[port] = new ServerSelectStrategy();
 
-                    if (uricache.ContainsKey(targetAddr))
+                    if (_uriCache.ContainsKey(targetAddr))
                     {
-                        var visit = uricache.Get(targetAddr);
+                        var visit = _uriCache.Get(targetAddr);
                         var j = -1;
-                        for (var i = 0; i < configs.Count; ++i)
+                        for (var i = 0; i < Configs.Count; ++i)
                         {
-                            if (configs[i].id == id)
+                            if (Configs[i].Id == id)
                             {
                                 j = i;
                                 break;
                             }
                         }
-                        if (j >= 0 && visit.index == j && configs[j].enable)
+                        if (j >= 0 && visit.index == j && Configs[j].Enable)
                         {
-                            uricache.Del(targetAddr);
+                            _uriCache.Del(targetAddr);
                             return true;
                         }
                     }
@@ -201,56 +264,57 @@ namespace Shadowsocks.Model
 
         public Server GetCurrentServer(int port, ServerSelectStrategy.FilterFunc filter, string targetAddr = null, bool cfgRandom = false, bool usingRandom = false, bool forceRandom = false)
         {
-            lock (serverStrategyMap)
+            lock (_serverStrategyMap)
             {
-                if (!serverStrategyMap.ContainsKey(port))
-                    serverStrategyMap[port] = new ServerSelectStrategy();
-                var serverStrategy = serverStrategyMap[port];
+                if (!_serverStrategyMap.ContainsKey(port))
+                    _serverStrategyMap[port] = new ServerSelectStrategy();
+                var serverStrategy = _serverStrategyMap[port];
 
-                uricache.SetTimeout(keepVisitTime);
-                uricache.Sweep();
-                if (sameHostForSameTarget && !forceRandom && targetAddr != null && uricache.ContainsKey(targetAddr))
+                _uriCache.SetTimeout(KeepVisitTime);
+                _uriCache.Sweep();
+                if (SameHostForSameTarget && !forceRandom && targetAddr != null && _uriCache.ContainsKey(targetAddr))
                 {
-                    var visit = uricache.Get(targetAddr);
-                    if (visit.index < configs.Count && configs[visit.index].enable && configs[visit.index].ServerSpeedLog().ErrorContinurousTimes == 0)
+                    var visit = _uriCache.Get(targetAddr);
+                    if (visit.index < Configs.Count && Configs[visit.index].Enable && Configs[visit.index].SpeedLog.ErrorContinuousTimes == 0)
                     {
-                        uricache.Del(targetAddr);
-                        return configs[visit.index];
+                        _uriCache.Del(targetAddr);
+                        return Configs[visit.index];
                     }
                 }
                 if (forceRandom)
                 {
                     int i;
-                    if (filter == null && randomInGroup)
+                    if (filter == null && RandomInGroup)
                     {
-                        i = serverStrategy.Select(configs, index, balanceAlgorithm, delegate (Server server, Server selServer)
+                        i = serverStrategy.Select(Configs, Index, BalanceType, delegate (Server server, Server selServer)
                         {
                             if (selServer != null)
-                                return selServer.group == server.group;
+                                return selServer.Group == server.Group;
                             return false;
                         }, true);
                     }
                     else
                     {
-                        i = serverStrategy.Select(configs, index, balanceAlgorithm, filter, true);
+                        i = serverStrategy.Select(Configs, Index, BalanceType, filter, true);
                     }
-                    return i == -1 ? GetErrorServer() : configs[i];
+                    return i == -1 ? GetErrorServer() : Configs[i];
                 }
-                else if (usingRandom && cfgRandom)
+
+                if (usingRandom && cfgRandom)
                 {
                     int i;
-                    if (filter == null && randomInGroup)
+                    if (filter == null && RandomInGroup)
                     {
-                        i = serverStrategy.Select(configs, index, balanceAlgorithm, delegate (Server server, Server selServer)
+                        i = serverStrategy.Select(Configs, Index, BalanceType, delegate (Server server, Server selServer)
                         {
                             if (selServer != null)
-                                return selServer.group == server.group;
+                                return selServer.Group == server.Group;
                             return false;
                         });
                     }
                     else
                     {
-                        i = serverStrategy.Select(configs, index, balanceAlgorithm, filter);
+                        i = serverStrategy.Select(Configs, Index, BalanceType, filter);
                     }
                     if (i == -1) return GetErrorServer();
                     if (targetAddr != null)
@@ -261,70 +325,64 @@ namespace Shadowsocks.Model
                             index = i,
                             visitTime = DateTime.Now
                         };
-                        uricache.Set(targetAddr, visit);
+                        _uriCache.Set(targetAddr, visit);
                     }
-                    return configs[i];
+                    return Configs[i];
                 }
-                else
-                {
-                    if (index >= 0 && index < configs.Count)
-                    {
-                        var selIndex = index;
-                        if (usingRandom)
-                        {
-                            foreach (var unused in configs)
-                            {
-                                if (configs[selIndex].isEnable())
-                                {
-                                    break;
-                                }
-                                else
-                                {
-                                    selIndex = (selIndex + 1) % configs.Count;
-                                }
-                            }
-                        }
 
-                        if (targetAddr != null)
-                        {
-                            var visit = new UriVisitTime
-                            {
-                                uri = targetAddr,
-                                index = selIndex,
-                                visitTime = DateTime.Now
-                            };
-                            uricache.Set(targetAddr, visit);
-                        }
-                        return configs[selIndex];
-                    }
-                    else
+                if (Index >= 0 && Index < Configs.Count)
+                {
+                    var selIndex = Index;
+                    if (usingRandom)
                     {
-                        return GetErrorServer();
+                        foreach (var unused in Configs)
+                        {
+                            if (Configs[selIndex].Enable)
+                            {
+                                break;
+                            }
+
+                            selIndex = (selIndex + 1) % Configs.Count;
+                        }
                     }
+
+                    if (targetAddr != null)
+                    {
+                        var visit = new UriVisitTime
+                        {
+                            uri = targetAddr,
+                            index = selIndex,
+                            visitTime = DateTime.Now
+                        };
+                        _uriCache.Set(targetAddr, visit);
+                    }
+                    return Configs[selIndex];
                 }
+
+                return GetErrorServer();
             }
         }
 
         public void FlushPortMapCache()
         {
-            portMapCache = new Dictionary<int, PortMapConfigCache>();
+            PortMapCache = new Dictionary<int, PortMapConfigCache>();
             var id2server = new Dictionary<string, Server>();
             var server_group = new Dictionary<string, int>();
-            foreach (var s in configs)
+            foreach (var s in Configs)
             {
-                id2server[s.id] = s;
-                if (!string.IsNullOrEmpty(s.group))
+                id2server[s.Id] = s;
+                if (!string.IsNullOrEmpty(s.Group))
                 {
-                    server_group[s.group] = 1;
+                    server_group[s.Group] = 1;
                 }
             }
-            foreach (var pair in portMap)
+            foreach (var pair in PortMap)
             {
                 int key;
                 var pm = pair.Value;
-                if (!pm.enable)
+                if (!pm.Enable)
                     continue;
-                if (id2server.ContainsKey(pm.id) || server_group.ContainsKey(pm.id) || pm.id == null || pm.id.Length == 0)
+                if (id2server.ContainsKey(pm.Id) || server_group.ContainsKey(pm.Id) || pm.Id == null || pm.Id.Length == 0)
                 { }
                 else
                     continue;
@@ -336,506 +394,164 @@ namespace Shadowsocks.Model
                 {
                     continue;
                 }
-                portMapCache[key] = new PortMapConfigCache
+                PortMapCache[key] = new PortMapConfigCache
                 {
-                    type = pm.type,
-                    id = pm.id,
-                    server = id2server.ContainsKey(pm.id) ? id2server[pm.id] : null,
-                    server_addr = pm.server_addr,
-                    server_port = pm.server_port
+                    type = pm.Type,
+                    id = pm.Id,
+                    server = id2server.ContainsKey(pm.Id) ? id2server[pm.Id] : null,
+                    server_addr = pm.Server_addr,
+                    server_port = pm.Server_port
                 };
             }
-            lock (serverStrategyMap)
+            lock (_serverStrategyMap)
             {
                 var remove_ports = new List<int>();
-                foreach (var pair in serverStrategyMap)
+                foreach (var pair in _serverStrategyMap)
                 {
-                    if (portMapCache.ContainsKey(pair.Key)) continue;
+                    if (PortMapCache.ContainsKey(pair.Key)) continue;
                     remove_ports.Add(pair.Key);
                 }
                 foreach (var port in remove_ports)
                 {
-                    serverStrategyMap.Remove(port);
+                    _serverStrategyMap.Remove(port);
                 }
-                if (!portMapCache.ContainsKey(localPort))
-                    serverStrategyMap.Remove(localPort);
+                if (!PortMapCache.ContainsKey(LocalPort))
+                    _serverStrategyMap.Remove(LocalPort);
             }
 
-            uricache.Clear();
-        }
-
-        public Dictionary<int, PortMapConfigCache> GetPortMapCache()
-        {
-            return portMapCache;
-        }
-
-        public static void CheckServer(Server server)
-        {
-            CheckPort(server.server_port);
-            if (server.server_udp_port != 0)
-                CheckPort(server.server_udp_port);
-            try
-            {
-                CheckPassword(server.password);
-            }
-            catch (ConfigurationWarning cw)
-            {
-                server.password = string.Empty;
-                MessageBox.Show(cw.Message, cw.Message, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            CheckServer(server.server);
+            _uriCache.Clear();
         }
 
         public Configuration()
         {
-            index = 0;
-            localPort = 1080;
-
-            reconnectTimes = 2;
-            keepVisitTime = 180;
-            connectTimeout = 5;
-            dnsServer = string.Empty;
-            localDnsServer = string.Empty;
-
-            balanceAlgorithm = @"LowException";
-            random = false;
-            sysProxyMode = (int)ProxyMode.NoModify;
-            proxyRuleMode = (int)ProxyRuleMode.Disable;
-
-            nodeFeedAutoUpdate = true;
-
-            serverSubscribes = new List<ServerSubscribe>();
-
-            configs = new List<Server>();
+            Configs = new List<Server>();
+            Index = 0;
+            Random = false;
+            SysProxyMode = ProxyMode.NoModify;
+            ShareOverLan = false;
+            LocalPort = 1080;
+            ReconnectTimes = 2;
+            BalanceType = BalanceType.LowException;
+            RandomInGroup = true;
+            Ttl = 60;
+            ConnectTimeout = 5;
+            ProxyRuleMode = ProxyRuleMode.Disable;
+            ProxyEnable = false;
+            PacDirectGoProxy = false;
+            ProxyType = ProxyType.Socks5;
+            ProxyHost = string.Empty;
+            ProxyPort = 1;
+            ProxyAuthUser = string.Empty;
+            ProxyAuthPass = string.Empty;
+            ProxyUserAgent = string.Empty;
+            AuthUser = string.Empty;
+            AuthPass = string.Empty;
+            AutoBan = false;
+            CheckSwitchAutoCloseAll = true;
+            LogEnable = true;
+            SameHostForSameTarget = true;
+            IsPreRelease = false;
+            AutoCheckUpdate = true;
+            LangName = string.Empty;
+            DnsClients = new List<DnsClient>
+            {
+#if IsDotNetCore
+                new DnsClient(DnsType.DnsOverTls) {DnsServer = @"1.1.1.1"},
+                new DnsClient(DnsType.Default) {DnsServer = @"1.1.1.1"},
+                new DnsClient(DnsType.DnsOverTls),
+                new DnsClient(DnsType.Default)
+#endif
+            };
+            ServerSubscribes = new List<ServerSubscribe>();
+            PortMap = new Dictionary<string, PortMapConfig>();
         }
 
         public void CopyFrom(Configuration config)
         {
-            configs = config.configs;
-            index = config.index;
-            random = config.random;
-            sysProxyMode = config.sysProxyMode;
-            shareOverLan = config.shareOverLan;
-            localPort = config.localPort;
-            reconnectTimes = config.reconnectTimes;
-            balanceAlgorithm = config.balanceAlgorithm;
-            randomInGroup = config.randomInGroup;
-            TTL = config.TTL;
-            connectTimeout = config.connectTimeout;
-            dnsServer = config.dnsServer;
-            localDnsServer = config.localDnsServer;
-            proxyEnable = config.proxyEnable;
-            pacDirectGoProxy = config.pacDirectGoProxy;
-            proxyType = config.proxyType;
-            proxyHost = config.proxyHost;
-            proxyPort = config.proxyPort;
-            proxyAuthUser = config.proxyAuthUser;
-            proxyAuthPass = config.proxyAuthPass;
-            proxyUserAgent = config.proxyUserAgent;
-            authUser = config.authUser;
-            authPass = config.authPass;
-            autoBan = config.autoBan;
-            checkSwitchAutoCloseAll = config.checkSwitchAutoCloseAll;
-            logEnable = config.logEnable;
-            sameHostForSameTarget = config.sameHostForSameTarget;
-            keepVisitTime = config.keepVisitTime;
-            isHideTips = config.isHideTips;
-            nodeFeedAutoUpdate = config.nodeFeedAutoUpdate;
-            serverSubscribes = config.serverSubscribes;
+            Configs = config.Configs;
+            Index = config.Index;
+            Random = config.Random;
+            SysProxyMode = config.SysProxyMode;
+            ShareOverLan = config.ShareOverLan;
+            LocalPort = config.LocalPort;
+            ReconnectTimes = config.ReconnectTimes;
+            BalanceType = config.BalanceType;
+            RandomInGroup = config.RandomInGroup;
+            Ttl = config.Ttl;
+            ConnectTimeout = config.ConnectTimeout;
+            ProxyRuleMode = config.ProxyRuleMode;
+            ProxyEnable = config.ProxyEnable;
+            PacDirectGoProxy = config.PacDirectGoProxy;
+            ProxyType = config.ProxyType;
+            ProxyHost = config.ProxyHost;
+            ProxyPort = config.ProxyPort;
+            ProxyAuthUser = config.ProxyAuthUser;
+            ProxyAuthPass = config.ProxyAuthPass;
+            ProxyUserAgent = config.ProxyUserAgent;
+            AuthUser = config.AuthUser;
+            AuthPass = config.AuthPass;
+            AutoBan = config.AutoBan;
+            CheckSwitchAutoCloseAll = config.CheckSwitchAutoCloseAll;
+            LogEnable = config.LogEnable;
+            SameHostForSameTarget = config.SameHostForSameTarget;
+            IsPreRelease = config.IsPreRelease;
+            AutoCheckUpdate = config.AutoCheckUpdate;
+            LangName = config.LangName;
+            DnsClients = config.DnsClients;
+            ServerSubscribes = config.ServerSubscribes;
+            //PortMap = config.PortMap;
         }
 
-        private void FixConfiguration()
+        public void FixConfiguration()
         {
-            if (localPort == 0)
+            if (!IsPort(LocalPort))
             {
-                localPort = 1080;
+                LocalPort = 1080;
             }
-            if (keepVisitTime == 0)
+            if (PortMap == null)
             {
-                keepVisitTime = 180;
+                PortMap = new Dictionary<string, PortMapConfig>();
             }
-            if (portMap == null)
+            if (ConnectTimeout == 0)
             {
-                portMap = new Dictionary<string, PortMapConfig>();
+                ConnectTimeout = 5;
+                ReconnectTimes = 2;
+                Ttl = 60;
             }
-            if (token == null)
+            if (Index < 0 || Index >= Configs.Count)
             {
-                token = new Dictionary<string, string>();
+                Index = 0;
             }
-            if (connectTimeout == 0)
+            if (Configs.Count == 0)
             {
-                connectTimeout = 10;
-                reconnectTimes = 2;
-                TTL = 180;
-                keepVisitTime = 180;
-            }
-            if (localAuthPassword == null || localAuthPassword.Length < 16)
-            {
-                localAuthPassword = RandString(20);
+                Configs.Add(new Server());
             }
 
-            var id = new Dictionary<string, int>();
-            if (index < 0 || index >= configs.Count) index = 0;
-            if (configs.Count == 0)
+            var id = new HashSet<string>();
+            foreach (var server in Configs)
             {
-                configs.Add(GetDefaultServer());
-            }
-            foreach (var server in configs)
-            {
-                if (id.ContainsKey(server.id))
+                while (id.Contains(server.Id))
                 {
-                    var newId = new byte[16];
-                    Util.Utils.RandBytes(newId, newId.Length);
-                    server.id = BitConverter.ToString(newId).Replace("-", string.Empty);
+                    server.Id = Rng.RandId();
                 }
-                else
-                {
-                    id[server.id] = 0;
-                }
+                id.Add(server.Id);
             }
-        }
-
-        private static string RandString(int len)
-        {
-            const string set = @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-            var ret = string.Empty;
-            var random = new Random();
-            for (var i = 0; i < len; ++i)
-            {
-                ret += set[random.Next(set.Length)];
-            }
-            return ret;
-        }
-
-        public static Configuration LoadFile(string filename)
-        {
-            try
-            {
-                if (File.Exists(filename))
-                {
-                    var configContent = File.ReadAllText(filename);
-                    return Load(configContent);
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-
-            var config = new Configuration();
-            config.FixConfiguration();
-            return config;
-        }
-
-        public static Configuration Load()
-        {
-            return LoadFile(CONFIG_FILE);
-        }
-
-        public static void Save(Configuration config)
-        {
-            if (config.index >= config.configs.Count)
-            {
-                config.index = config.configs.Count - 1;
-            }
-            if (config.index < 0)
-            {
-                config.index = 0;
-            }
-            try
-            {
-                var jsonString = JsonConvert.SerializeObject(config, Formatting.Indented);
-                if (GlobalConfiguration.config_password.Length > 0)
-                {
-                    var encryptor = EncryptorFactory.GetEncryptor("aes-256-cfb", GlobalConfiguration.config_password);
-                    var cfgData = Encoding.UTF8.GetBytes(jsonString);
-                    var cfgEncrypt = new byte[cfgData.Length + 128];
-                    var dataLen = 0;
-                    const int buffer_size = 32768;
-                    var input = new byte[buffer_size];
-                    var output = new byte[buffer_size + 128];
-                    for (var start_pos = 0; start_pos < cfgData.Length; start_pos += buffer_size)
-                    {
-                        var len = Math.Min(cfgData.Length - start_pos, buffer_size);
-                        Buffer.BlockCopy(cfgData, start_pos, input, 0, len);
-                        encryptor.Encrypt(input, len, output, out var out_len);
-                        Buffer.BlockCopy(output, 0, cfgEncrypt, dataLen, out_len);
-                        dataLen += out_len;
-                    }
-                    jsonString = Convert.ToBase64String(cfgEncrypt, 0, dataLen);
-                }
-                using (var sw = new StreamWriter(File.Open(CONFIG_FILE, FileMode.Create)))
-                {
-                    sw.Write(jsonString);
-                    sw.Flush();
-                }
-
-                if (File.Exists(CONFIG_FILE_BACKUP))
-                {
-                    var dt = File.GetLastWriteTimeUtc(CONFIG_FILE_BACKUP);
-                    var now = DateTime.Now;
-                    if ((now - dt).TotalHours > 4)
-                    {
-                        File.Copy(CONFIG_FILE, CONFIG_FILE_BACKUP, true);
-                    }
-                }
-                else
-                {
-                    File.Copy(CONFIG_FILE, CONFIG_FILE_BACKUP, true);
-                }
-            }
-            catch (IOException e)
-            {
-                Console.Error.WriteLine(e);
-            }
-        }
-
-        public static Configuration Load(string config_str)
-        {
-            try
-            {
-                if (GlobalConfiguration.config_password.Length > 0)
-                {
-                    var cfg_encrypt = Convert.FromBase64String(config_str);
-                    var encryptor = EncryptorFactory.GetEncryptor("aes-256-cfb", GlobalConfiguration.config_password);
-                    var cfg_data = new byte[cfg_encrypt.Length];
-                    var data_len = 0;
-                    const int buffer_size = 32768;
-                    var input = new byte[buffer_size];
-                    var output = new byte[buffer_size + 128];
-                    for (var start_pos = 0; start_pos < cfg_encrypt.Length; start_pos += buffer_size)
-                    {
-                        var len = Math.Min(cfg_encrypt.Length - start_pos, buffer_size);
-                        Buffer.BlockCopy(cfg_encrypt, start_pos, input, 0, len);
-                        encryptor.Decrypt(input, len, output, out var out_len);
-                        Buffer.BlockCopy(output, 0, cfg_data, data_len, out_len);
-                        data_len += out_len;
-                    }
-                    config_str = Encoding.UTF8.GetString(cfg_data, 0, data_len);
-                }
-            }
-            catch
-            {
-                // ignored
-            }
-
-            try
-            {
-                var config = JsonConvert.DeserializeObject<Configuration>(config_str);
-                config.FixConfiguration();
-                return config;
-            }
-            catch
-            {
-                // ignored
-            }
-
-            return null;
-        }
-
-        public static Server GetDefaultServer()
-        {
-            return new Server();
         }
 
         public bool IsDefaultConfig()
         {
-            return configs.Count == 1 && configs[0].server == GetDefaultServer().server;
-        }
-
-        public static Server CopyServer(Server server)
-        {
-            var s = new Server
-            {
-                server = server.server,
-                server_port = server.server_port,
-                method = server.method,
-                protocol = server.protocol,
-                protocolparam = server.protocolparam ?? string.Empty,
-                obfs = server.obfs,
-                obfsparam = server.obfsparam ?? string.Empty,
-                password = server.password,
-                remarks = server.remarks,
-                group = server.group,
-                udp_over_tcp = server.udp_over_tcp,
-                server_udp_port = server.server_udp_port
-            };
-            return s;
+            return Configs.All(server => server.server == new Server().server);
         }
 
         private static Server GetErrorServer()
         {
-            var server = new Server { server = "invalid" };
+            var server = new Server { server = @"invalid" };
             return server;
         }
 
-        public static void CheckPort(int port)
+        private static bool IsPort(int port)
         {
-            if (port <= IPEndPoint.MinPort || port > IPEndPoint.MaxPort)
-            {
-                throw new ConfigurationException(I18N.GetString("Port out of range"));
-            }
-        }
-
-        private static void CheckPassword(string password)
-        {
-            if (string.IsNullOrEmpty(password))
-            {
-                throw new ConfigurationWarning(I18N.GetString("Password are blank"));
-            }
-        }
-
-        private static void CheckServer(string server)
-        {
-            if (string.IsNullOrEmpty(server))
-            {
-                throw new ConfigurationException(I18N.GetString("Server IP can not be blank"));
-            }
-        }
-
-    }
-
-    [Serializable]
-    public class ServerTrans
-    {
-        public long totalUploadBytes;
-        public long totalDownloadBytes;
-    }
-
-    [Serializable]
-    public class ServerTransferTotal
-    {
-        private const string LOG_FILE = @"transfer_log.json";
-
-        public Dictionary<string, ServerTrans> servers = new Dictionary<string, ServerTrans>();
-        private int saveCounter;
-        private DateTime saveTime;
-
-        public static ServerTransferTotal Load()
-        {
-            try
-            {
-                var config_str = File.ReadAllText(LOG_FILE);
-                var config = new ServerTransferTotal();
-                try
-                {
-                    if (GlobalConfiguration.config_password.Length > 0)
-                    {
-                        var cfgEncrypt = Convert.FromBase64String(config_str);
-                        var encryptor = EncryptorFactory.GetEncryptor("aes-256-cfb", GlobalConfiguration.config_password);
-                        var cfgData = new byte[cfgEncrypt.Length];
-                        encryptor.Decrypt(cfgEncrypt, cfgEncrypt.Length, cfgData, out var data_len);
-                        config_str = Encoding.UTF8.GetString(cfgData, 0, data_len);
-                    }
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                config.servers = JsonConvert.DeserializeObject<Dictionary<string, ServerTrans>>(config_str);
-                config.Init();
-                return config;
-            }
-            catch (Exception e)
-            {
-                if (!(e is FileNotFoundException))
-                {
-                    Console.WriteLine(e);
-                }
-                return new ServerTransferTotal();
-            }
-        }
-
-        private void Init()
-        {
-            saveCounter = 256;
-            saveTime = DateTime.Now;
-            if (servers == null)
-            {
-                servers = new Dictionary<string, ServerTrans>();
-            }
-        }
-
-        public static void Save(ServerTransferTotal config)
-        {
-            try
-            {
-                using (var sw = new StreamWriter(File.Open(LOG_FILE, FileMode.Create)))
-                {
-                    var jsonString = JsonConvert.SerializeObject(config.servers, Formatting.Indented);
-                    if (GlobalConfiguration.config_password.Length > 0)
-                    {
-                        var encryptor = EncryptorFactory.GetEncryptor("aes-256-cfb", GlobalConfiguration.config_password);
-                        var cfgData = Encoding.UTF8.GetBytes(jsonString);
-                        var cfgEncrypt = new byte[cfgData.Length + 128];
-                        encryptor.Encrypt(cfgData, cfgData.Length, cfgEncrypt, out var data_len);
-                        jsonString = Convert.ToBase64String(cfgEncrypt, 0, data_len);
-                    }
-                    sw.Write(jsonString);
-                    sw.Flush();
-                }
-            }
-            catch (IOException e)
-            {
-                Console.Error.WriteLine(e);
-            }
-        }
-
-        public void Clear(string server)
-        {
-            lock (servers)
-            {
-                if (servers.ContainsKey(server))
-                {
-                    servers[server].totalUploadBytes = 0;
-                    servers[server].totalDownloadBytes = 0;
-                }
-            }
-        }
-
-        public void AddUpload(string server, long size)
-        {
-            lock (servers)
-            {
-                if (!servers.ContainsKey(server))
-                    servers.Add(server, new ServerTrans());
-                servers[server].totalUploadBytes += size;
-            }
-            if (--saveCounter <= 0)
-            {
-                saveCounter = 256;
-                if ((DateTime.Now - saveTime).TotalMinutes > 10)
-                {
-                    lock (servers)
-                    {
-                        Save(this);
-                        saveTime = DateTime.Now;
-                    }
-                }
-            }
-        }
-
-        public void AddDownload(string server, long size)
-        {
-            lock (servers)
-            {
-                if (!servers.ContainsKey(server))
-                    servers.Add(server, new ServerTrans());
-                servers[server].totalDownloadBytes += size;
-            }
-            if (--saveCounter <= 0)
-            {
-                saveCounter = 256;
-                if ((DateTime.Now - saveTime).TotalMinutes > 10)
-                {
-                    lock (servers)
-                    {
-                        Save(this);
-                        saveTime = DateTime.Now;
-                    }
-                }
-            }
+            return port > IPEndPoint.MinPort && port <= IPEndPoint.MaxPort;
         }
     }
 }

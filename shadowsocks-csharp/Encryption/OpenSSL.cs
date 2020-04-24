@@ -1,11 +1,11 @@
-﻿using Shadowsocks.Controller;
-using Shadowsocks.Properties;
-using Shadowsocks.Util;
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
+using Shadowsocks.Controller;
+using Shadowsocks.Properties;
+using Shadowsocks.Util;
 
 namespace Shadowsocks.Encryption
 {
@@ -27,7 +27,7 @@ namespace Shadowsocks.Encryption
             catch (IOException)
             {
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 Logging.LogUsefulException(e);
             }

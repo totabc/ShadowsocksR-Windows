@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using Shadowsocks.Controller;
 
 namespace Shadowsocks.Model
@@ -59,7 +58,7 @@ namespace Shadowsocks.Model
             {
                 if (_store.ContainsKey(key))
                 {
-                    DateTime t = _key_2_time[key];
+                    var t = _key_2_time[key];
                     _key_2_time.Remove(key);
                     _time_2_key.Remove(t);
                     t = DateTime.Now;
@@ -71,7 +70,7 @@ namespace Shadowsocks.Model
                     _key_2_time[key] = t;
                     return _store[key];
                 }
-                return default(V);
+                return default;
             }
         }
 
@@ -117,12 +116,12 @@ namespace Shadowsocks.Model
         {
             lock (_lock)
             {
-                DateTime now = DateTime.Now;
-                int sweep = 0;
-                for (int i = 0; i < 100; ++i)
+                var now = DateTime.Now;
+                var sweep = 0;
+                for (var i = 0; i < 100; ++i)
                 {
-                    bool finish = false;
-                    foreach (KeyValuePair<DateTime, K> p in _time_2_key)
+                    var finish = false;
+                    foreach (var p in _time_2_key)
                     {
                         if ((now - p.Key).TotalSeconds < _sweep_time)
                         {
@@ -132,7 +131,7 @@ namespace Shadowsocks.Model
                         _key_2_time.Remove(p.Value);
                         _time_2_key.Remove(p.Key);
                         _store.Remove(p.Value);
-                        Logging.Debug("sweep [" + p.Key.ToString() + "]: " + p.Value.ToString());
+                        Logging.Debug("sweep [" + p.Key + "]: " + p.Value);
                         sweep += 1;
                         break;
                     }
@@ -141,7 +140,7 @@ namespace Shadowsocks.Model
                 }
                 if (sweep > 0)
                 {
-                    Logging.Debug("sweep " + sweep.ToString() + " items");
+                    Logging.Debug("sweep " + sweep + " items");
                 }
             }
         }

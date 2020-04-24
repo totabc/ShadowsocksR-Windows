@@ -1,15 +1,15 @@
-﻿using Shadowsocks.Controller;
-using Shadowsocks.Properties;
-using Shadowsocks.Util;
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using Shadowsocks.Controller;
+using Shadowsocks.Properties;
+using Shadowsocks.Util;
 
 namespace Shadowsocks.Encryption
 {
-    public class MbedTLS
+    public static class MbedTLS
     {
-        const string DLLNAME = "libsscrypto.dll";
+        const string DLLNAME = @"libsscrypto.dll";
 
         public const int MBEDTLS_ENCRYPT = 1;
         public const int MBEDTLS_DECRYPT = 0;
@@ -39,7 +39,7 @@ namespace Shadowsocks.Encryption
 
             public byte[] ComputeHash(byte[] buffer, int offset, int count)
             {
-                byte[] output = new byte[64];
+                var output = new byte[64];
                 ss_hmac_ex(MBEDTLS_MD_MD5, key, key.Length, buffer, offset, count, output);
                 return output;
             }
@@ -56,7 +56,7 @@ namespace Shadowsocks.Encryption
 
             public byte[] ComputeHash(byte[] buffer, int offset, int count)
             {
-                byte[] output = new byte[64];
+                var output = new byte[64];
                 ss_hmac_ex(MBEDTLS_MD_SHA1, key, key.Length, buffer, offset, count, output);
                 return output;
             }
@@ -73,7 +73,7 @@ namespace Shadowsocks.Encryption
             catch (IOException)
             {
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 Logging.LogUsefulException(e);
             }
@@ -81,26 +81,26 @@ namespace Shadowsocks.Encryption
 
         public static byte[] MD5(byte[] input)
         {
-            byte[] output = new byte[16];
+            var output = new byte[16];
             md5(input, input.Length, output);
             return output;
         }
 
         public static byte[] SHA1(byte[] input)
         {
-            byte[] output = new byte[20];
+            var output = new byte[20];
             ss_md(MBEDTLS_MD_SHA1, input, 0, input.Length, output);
             return output;
         }
 
         public static byte[] SHA512(byte[] input)
         {
-            byte[] output = new byte[64];
+            var output = new byte[64];
             ss_md(MBEDTLS_MD_SHA512, input, 0, input.Length, output);
             return output;
         }
 
-        [DllImport("Kernel32.dll")]
+        [DllImport(@"Kernel32.dll")]
         private static extern IntPtr LoadLibrary(string path);
 
         [DllImport(DLLNAME, CallingConvention = CallingConvention.Cdecl)]

@@ -1,4 +1,4 @@
-﻿using Shadowsocks.Controller;
+﻿using Shadowsocks.Controller.HttpRequest;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
