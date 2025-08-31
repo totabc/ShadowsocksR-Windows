@@ -1,24 +1,27 @@
-ShadowsocksR for Windows
+<img src="shadowsocks-csharp/Resources/ssw128.png" width="48"/>ShadowsocksR for Windows
 =======================
 
-[![Build Status]][Appveyor]
+[![](https://img.shields.io/badge/Channel-blue?label=Telegram&logo=telegram)](https://t.me/ShadowsocksR_Windows)
+[![](https://img.shields.io/badge/Group-green?label=Telegram&logo=telegram)](https://t.me/joinchat/Gn-Aa0-j4HcpdBaW-Iv8Sw)
 
-#### Download
+## Build
+
+[![](https://github.com/HMBSbige/ShadowsocksR-Windows/workflows/CI/badge.svg)](https://github.com/HMBSbige/ShadowsocksR-Windows/actions)
+
+## [Wiki](https://github.com/HMBSbige/ShadowsocksR-Windows/wiki)
+
+## Download
 
 * [latest release]
-* [nightly build]
 
-### Develop
+## Develop
 
-Visual Studio Community 2019 is recommended.
+Visual Studio Community 2022 is recommended.
 
-#### License
+## License
 
 GPLv3
 
-Copyright © HMBSbige 2019. Forked from ShadowsocksR by BreakWa11
+Copyright © 2019 - 2022 HMBSbige. Forked from ShadowsocksR by BreakWa11
 
-[Appveyor]:       https://ci.appveyor.com/project/HMBSbige/shadowsocksr-windows
-[Build Status]:   https://ci.appveyor.com/api/projects/status/b9jgwdfvn20ithj1/branch/master?svg=true
 [latest release]: https://github.com/HMBSbige/ShadowsocksR-Windows/releases
-[nightly build]: https://ci.appveyor.com/project/HMBSbige/shadowsocksr-windows/build/artifacts

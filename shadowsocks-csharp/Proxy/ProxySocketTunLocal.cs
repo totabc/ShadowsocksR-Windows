@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+using System.Net.Sockets;
 
 namespace Shadowsocks.Proxy
 {
@@ -10,17 +10,13 @@ namespace Shadowsocks.Proxy
         {
         }
 
-        public ProxySocketTunLocal(AddressFamily af, SocketType type, ProtocolType protocol) : base(af, type, protocol)
-        {
-        }
-
         public override int Send(byte[] buffer, int size, SocketFlags flags)
         {
             if (local_sendback_protocol != null)
             {
                 if (local_sendback_protocol == "http")
                 {
-                    byte[] data = System.Text.Encoding.UTF8.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
+                    var data = System.Text.Encoding.UTF8.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
                     _socket.Send(data, data.Length, 0);
                 }
                 else if (local_sendback_protocol == "socks5")
@@ -50,7 +46,7 @@ namespace Shadowsocks.Proxy
                 local_sendback_protocol = null;
             }
 
-            return SendAll(buffer, size, 0);
+            return SendAll(buffer, size, flags);
         }
 
     }

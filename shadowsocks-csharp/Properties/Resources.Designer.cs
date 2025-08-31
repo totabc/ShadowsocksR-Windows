@@ -47,8 +47,8 @@ namespace Shadowsocks.Properties {
         }
         
         /// <summary>
-        ///   重写当前线程的 CurrentUICulture 属性
-        ///   重写当前线程的 CurrentUICulture 属性。
+        ///   重写当前线程的 CurrentUICulture 属性，对
+        ///   使用此强类型资源类的所有资源查找执行重写。
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
         internal static global::System.Globalization.CultureInfo Culture {
@@ -61,34 +61,77 @@ namespace Shadowsocks.Properties {
         }
         
         /// <summary>
-        ///   查找类似 # translation for Simplified Chinese
+        ///   查找类似 var direct = &quot;__DIRECT__&quot;;
+        ///if (direct == &quot;__DIR&quot; + &quot;ECT__&quot;) direct = &quot;DIRECT;&quot;;
         ///
-        ///Shadowsocks=Shadowsocks
-        ///ShadowsocksR=ShadowsocksR
+        ///var wall_proxy = function(){ return &quot;__PROXY__&quot;; };
+        ///var wall_v6_proxy = function(){ return &quot;__PROXY__&quot;; };
         ///
-        ///# Menu items
+        ///var nowall_proxy = function(){ return direct; };
+        ///var ip_proxy = function(){ return nowall_proxy(); };
+        ///var ipv6_proxy = function(){ return nowall_proxy(); };
         ///
-        ///Mode=系统代理模式
-        ///No modify system proxy=保持当前状态不修改
-        ///Disable system proxy=直连模式
-        ///PAC=PAC 模式
-        ///Global=全局模式
-        ///Proxy rule=代理规则
-        ///Bypass LAN=绕过局域网
-        ///Bypass LAN &amp;&amp; China=绕过局域网和大陆
-        ///Bypass LAN &amp;&amp; not China=绕过局域网和非大陆
-        ///User custom=用户自定义
-        ///Disable bypass=全局
-        ///Servers=服务器
-        ///Edit servers...=编辑服务器...
-        ///Import servers from file...=从文件导入服务器...
-        ///Servers Subscribe=服务器订阅
-        ///Subscribe setting...=SSR服务器订阅设置...
-        ///Update subscribe SSR nod [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///var userrules = __USERRULES__;
+        ///var rules = __RULES__;
+        ///
+        ////*
+        ///* This file is part of Adblock Plus &lt;http://adblockplus.org/&gt;,
+        ///* Copyright (C) 2006-2014 Eye [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
-        internal static string cn {
+        internal static string abp {
             get {
-                return ResourceManager.GetString("cn", resourceCulture);
+                return ResourceManager.GetString("abp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 1.0.1.0/24
+        ///1.0.2.0/23
+        ///1.0.8.0/21
+        ///1.0.32.0/19
+        ///1.1.0.0/24
+        ///1.1.2.0/23
+        ///1.1.4.0/22
+        ///1.1.8.0/21
+        ///1.1.16.0/20
+        ///1.1.32.0/19
+        ///1.2.0.0/23
+        ///1.2.2.0/24
+        ///1.2.4.0/22
+        ///1.2.8.0/21
+        ///1.2.16.0/20
+        ///1.2.32.0/19
+        ///1.2.64.0/18
+        ///1.3.0.0/16
+        ///1.4.1.0/24
+        ///1.4.2.0/23
+        ///1.4.4.0/22
+        ///1.4.8.0/21
+        ///1.4.16.0/20
+        ///1.4.32.0/19
+        ///1.4.64.0/18
+        ///1.8.0.0/16
+        ///1.10.0.0/21
+        ///1.10.8.0/23
+        ///1.10.11.0/24
+        ///1.10.12.0/22
+        ///1.10.16.0/20
+        ///1.10.32.0/19
+        ///1.10.64.0/18
+        ///1.12.16.0/20
+        ///1.12.32.0/23
+        ///1.12.36.0/22
+        ///1.12.40.0/21
+        ///1.12.48.0/20
+        ///1.12.64.0/18
+        ///1.12.128.0/17
+        ///1.13.0.0/16
+        ///1.14.0.0/15
+        ///1.18.128.0/2 [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
+        internal static string chn_ip {
+            get {
+                return ResourceManager.GetString("chn_ip", resourceCulture);
             }
         }
         
@@ -113,87 +156,38 @@ namespace Shadowsocks.Properties {
         }
         
         /// <summary>
-        ///   查找 System.Byte[] 类型的本地化资源。
-        /// </summary>
-        internal static byte[] mgwz_dll {
-            get {
-                object obj = ResourceManager.GetObject("mgwz_dll", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 listen-address __PRIVOXY_BIND_IP__:__PRIVOXY_BIND_PORT__
-        ///show-on-task-bar 0
-        ///activity-animation 0
-        ///forward-socks5 / 127.0.0.1:__SOCKS_PORT__ .
-        ///hide-console
-        ///__BYPASS_ACTION__
+        ///   查找类似 var direct = &quot;__DIRECT__&quot;;
+        ///if (direct == &quot;__DIR&quot; + &quot;ECT__&quot;) direct = &quot;DIRECT;&quot;;
         ///
-        /// 的本地化字符串。
+        ///var wall_proxy = function(){ return &quot;__PROXY__&quot;; };
+        ///var wall_v6_proxy = function(){ return &quot;__PROXY__&quot;; };
+        ///
+        ///var nowall_proxy = function(){ return direct; };
+        ///var ip_proxy = function(){ return nowall_proxy(); };
+        ///var ipv6_proxy = function(){ return nowall_proxy(); };
+        ///
+        ///var userrules = [];
+        ///var rules = [
+        ///  &quot;|http://85.17.73.31/&quot;,
+        ///  &quot;||afreecatv.com&quot;,
+        ///  &quot;||agnesb.fr&quot;,
+        ///  &quot;||akiba-web.com&quot;,
+        ///  &quot;||altrec.com&quot;,
+        ///  &quot;||angela-merkel.de&quot;,
+        ///  &quot;| [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
-        internal static string privoxy_conf {
+        internal static string proxy_pac {
             get {
-                return ResourceManager.GetString("privoxy_conf", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找 System.Byte[] 类型的本地化资源。
-        /// </summary>
-        internal static byte[] privoxy_exe {
-            get {
-                object obj = ResourceManager.GetObject("privoxy_exe", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找 System.Byte[] 类型的本地化资源。
-        /// </summary>
-        internal static byte[] proxy_pac_txt {
-            get {
-                object obj = ResourceManager.GetObject("proxy_pac_txt", resourceCulture);
-                return ((byte[])(obj));
+                return ResourceManager.GetString("proxy_pac", resourceCulture);
             }
         }
         
         /// <summary>
         ///   查找 System.Drawing.Bitmap 类型的本地化资源。
         /// </summary>
-        internal static System.Drawing.Bitmap ss16 {
+        internal static System.Drawing.Bitmap ss128 {
             get {
-                object obj = ResourceManager.GetObject("ss16", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
-        /// </summary>
-        internal static System.Drawing.Bitmap ss20 {
-            get {
-                object obj = ResourceManager.GetObject("ss20", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
-        /// </summary>
-        internal static System.Drawing.Bitmap ss24 {
-            get {
-                object obj = ResourceManager.GetObject("ss24", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   查找 System.Drawing.Bitmap 类型的本地化资源。
-        /// </summary>
-        internal static System.Drawing.Bitmap ssw128 {
-            get {
-                object obj = ResourceManager.GetObject("ssw128", resourceCulture);
+                object obj = ResourceManager.GetObject("ss128", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -206,38 +200,6 @@ namespace Shadowsocks.Properties {
         internal static string user_rule {
             get {
                 return ResourceManager.GetString("user_rule", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   查找类似 # translation for Traditional Chinese
-        ///
-        ///Shadowsocks=Shadowsocks
-        ///ShadowsocksR=ShadowsocksR
-        ///
-        ///# Menu items
-        ///
-        ///Mode=系統代理模式
-        ///No modify system proxy=保持當前狀態不修改
-        ///Disable system proxy=直連模式
-        ///PAC=PAC 模式
-        ///Global=全局模式
-        ///Proxy rule=代理規則
-        ///Bypass LAN=繞過區域網路
-        ///Bypass LAN &amp;&amp; China=繞過區域網路和大陸
-        ///Bypass LAN &amp;&amp; not China=繞過區域網路和非大陸
-        ///User custom=用戶自定義
-        ///Disable bypass=全局
-        ///Servers=伺服器
-        ///Edit servers...=編輯伺服器...
-        ///Import servers from file...=從文件導入伺服器...
-        ///Servers Subscribe=伺服器訂閱
-        ///Subscribe setting...=SSR伺服器訂閱設置...
-        ///Update subscribe SSR [字符串的其余部分被截断]&quot;; 的本地化字符串。
-        /// </summary>
-        internal static string zh_tw {
-            get {
-                return ResourceManager.GetString("zh_tw", resourceCulture);
             }
         }
     }
